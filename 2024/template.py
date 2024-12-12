@@ -1,13 +1,17 @@
 import sys
 
 def parse_file(filename: str) -> None:
+    with open(filename) as fp:
+        data = fp.read()
+
     pass
 
-def solve_part1(puzzle_input: None) -> None:
+
+def solve_part1(puzzle_input: None) -> int:
     pass
 
 
-def solve_part2(puzzle_input: None) -> None:
+def solve_part2(puzzle_input: None) -> int:
     pass
 
 
