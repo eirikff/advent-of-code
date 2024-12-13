@@ -36,35 +36,34 @@ def solve_part1(puzzle_input: list[int]) -> int:
 
 
 def solve_part2(puzzle_input: list[int]) -> int:
+    target_blinks = 75
 
-    def split_stone(digit: int, blinks: int) -> Generator[tuple[int,int],None,None]:
+    memo = {}
+    def split_stone(digit: int, blinks: int = 0) -> int:
+        if blinks == target_blinks:
+            return 1
+
+        if (digit, blinks) in memo:
+            return memo[(digit, blinks)]
+
+        count = 0 
         if digit == 0:
-            yield 1, blinks + 1
+            count += split_stone(1, blinks + 1)
         elif len(str(digit)) % 2 == 0:
             sd = str(digit)
             mid = len(sd) // 2
             left, right = sd[:mid], sd[mid:]
-            yield int(left), blinks + 1
-            yield int(right), blinks + 1
+            count += split_stone(int(left), blinks + 1)
+            count += split_stone(int(right), blinks + 1)
         else:
-            yield digit * 2024, blinks + 1
+            count += split_stone(digit * 2024, blinks + 1)
 
+        memo[(digit, blinks)] = count
+        return count
 
-    digits = puzzle_input.copy()
     total_count = 0
-    generator_stack = []
-    for digit in digits:
-        generator_stack.append(split_stone(digit, 0))
-
-        while len(generator_stack):
-            if ng := next(generator_stack[-1], None):
-                d, blinks = ng
-                if blinks == 75:
-                    total_count += 1
-                else:
-                    generator_stack.append(split_stone(d, blinks))
-            else:
-                generator_stack.pop()
+    for digit in puzzle_input:
+        total_count += split_stone(digit)
 
     return total_count
 
