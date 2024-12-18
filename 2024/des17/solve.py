@@ -1,3 +1,4 @@
+from re import findall
 import sys
 import time
 
@@ -22,14 +23,16 @@ def parse_file(filename: str) -> tuple[dict[str,int],list[int]]:
 
 
 class Computer:
-    def __init__(self, program: list[int], A: int = 0, B: int = 0, C: int = 0):
+    def __init__(self, program: list[int], 
+                 A: int = 0, B: int = 0, C: int = 0,
+                 *, debug: bool = False, trace: bool = False):
         self.program = program
         self.regA = A
         self.regB = B
         self.regC = C
 
-        self.debug = False
-        self.trace = False
+        self.debug = debug
+        self.trace = trace
         self.ip = 0
         self.output: list[int] = []
         self.opcode = {
@@ -47,6 +50,9 @@ class Computer:
         return f"Computer(A={self.regA}, B={self.regB}, C={self.regC}, ip={self.ip}, dbg={self.debug}, pgrm={self.program})"
 
     def execute(self, max_cycles: int = -1) -> list[int]:
+        if self.trace:
+            self.print_trace()
+
         self.ip = 0
         cycles = 0
         while self.ip < len(self.program):
@@ -61,7 +67,7 @@ class Computer:
                 break
 
         if self.debug:
-            print(f"Program exit after {cycles} cycles, output:", ",".join(str(d) for d in self.output))
+            print(f"Program exit after {cycles} cycles, output (len={len(self.output)}):", ",".join(str(d) for d in self.output))
 
         return self.output
 
@@ -234,7 +240,7 @@ class Computer:
 
 
 def solve_part1(registers: dict[str,int], program: list[int]) -> str:
-    comp = Computer(program, **registers)
+    comp = Computer(program, **registers)  # pyright: ignore
     # comp.pprint()
     # comp.toggle_debug()
     # comp.toggle_trace()
@@ -244,30 +250,45 @@ def solve_part1(registers: dict[str,int], program: list[int]) -> str:
 
 
 def solve_part2(registers: dict[str,int], program: list[int]) -> int:
-    comp = Computer(program, 0, 0, 0)
-
     # Initial A must be in range 2**45 to 2**48
-    # 2**45 = 1 << 3*15  (gives output length 16, 2**45 - 1 gives length 15)
-    # 2**48 = 1 << 3*16  (gives output length 17, 2**48 - 1 gives length 16)
-    initial_a = 0
-    for i in reversed(range(len(program))):
-        for b in range(8):
-            comp.regA = initial_a | b
-            comp.regB = 0
-            comp.regC = 0
-            comp.output = []
-            output = comp.execute(10000)
-            print(b, output)
-            if output[0] == program[i]:
-                break
+    # 2**45 = 1 << 3*15 = 8^15  (gives output length 16, 2**45 - 1 gives length 15)
+    # 2**48 = 1 << 3*16 = 8^16 (gives output length 17, 2**48 - 1 gives length 16)
 
-        initial_a = b << (3*i) | initial_a
-        print(i, initial_a, bin(initial_a))
+    # Find A by recursively find the last three bits that produces the output
+    # that matches with the individual bytes of the program, starting from the
+    # end. 
+    # This is done by constructing an A and running the program without the
+    # loop, ie. without the JNZ 0 instruction at the end. This produces an
+    # output with only one number. 
+    # If this number matches with the current target program byte, we take it
+    # as a candidate and move to the next three bits. If at some point none of
+    # the lowest three bits will give a valid next program byte, we backtrack
+    # up the recursion tree and continue with the next candidate.
+    # This is done until we either have tried all possible combinations of
+    # bits, or a solution is found. 
+    def find_a(program_without_loop: list[int], target_program: list[int], 
+               initial_a: int = 0, target_index: int | None = None) -> tuple[int,bool]:
+        if target_index is None:
+            target_index = len(target_program) - 1
 
-    print(initial_a)
-    output = Computer(program, A=initial_a).execute(10000)
-    print(output)
-    print("program", program)
+        if target_index == -1:
+            return initial_a, True
+
+        for last_3_bits in range(8):
+            candidate_a = initial_a << 3 | last_3_bits
+            output = Computer(program_without_loop, A=candidate_a).execute(1000)
+            if output[-1] == target_program[target_index]:
+                # This means the candidate gave the correct last output, so 
+                # try continuing with this
+                a, success = find_a(program_without_loop, target_program, candidate_a, target_index - 1)
+                if success:
+                    return a, True
+
+        return initial_a, False
+
+    program_without_loop = program[:-2]
+    initial_a, success = find_a(program_without_loop, program)
+
     return initial_a
 
 
@@ -283,5 +304,5 @@ print("part1:", sol1)
 t0 = time.time()
 sol2 = solve_part2(registers, program)
 t1 = time.time()
-print("part2:", sol2, f"(finished in {t1 - t0:.2f}s)")
+print("part2:", sol2, f"(finished in {t1 - t0:.4f}s)")
 
