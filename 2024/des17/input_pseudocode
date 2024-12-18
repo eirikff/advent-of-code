@@ -1,0 +1,25 @@
+# This is my interpetation of the input as pseudocode
+
+# Assembly
+    bst A
+    bxl 3
+    cdv B
+    adv 3
+    bxc 1
+    bxl 5
+    out B
+    jnz 0
+
+# Pseudocode
+A = ...
+B = 0
+C = 0
+
+while A > 0
+    B = (A % 8) ^ 3
+    C = A >> B
+    B = B ^ C ^ 5
+    out B % 8
+
+    A = A >> 3
+    
