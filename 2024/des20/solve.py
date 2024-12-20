@@ -82,6 +82,10 @@ def find_racetrack(grid: list[list[str]],
     return path, distances
 
 
+def manhattan_distance(start: tuple[int,int], end: tuple[int,int]) -> int:
+    return abs(end[0] - start[0]) + abs(end[1] - start[1])
+
+
 def solve_part1(grid: list[list[str]]) -> int:
     start = (-1, -1)
     end = (-1, -1)
@@ -133,14 +137,55 @@ def solve_part1(grid: list[list[str]]) -> int:
 
 
 def solve_part2(grid: list[list[str]]) -> int:
-    pass
+    start = (-1, -1)
+    end = (-1, -1)
+    for r in range(ROWS):
+        for c in range(COLS):
+            g = grid[r][c]
+            if g == START:
+                start = (r, c)
+            elif g == END:
+                end = (r, c)
+
+    path, distances = find_racetrack(grid, start, end)
+
+    save_counts = {}
+    for i, node in enumerate(path):
+        path_after = set(path[i:])
+
+        for cheat_length in range(1, 21):
+            cheat_ends = []
+            for r in range(ROWS):
+                for c in range(COLS):
+                    if grid[r][c] == WALL:
+                        continue
+
+                    if (r, c) not in path_after:
+                        continue
+
+                    if manhattan_distance(node, (r, c)) == cheat_length:
+                        cheat_ends.append((r, c))
+
+            r, c = node
+            for cheat_end in cheat_ends:
+                r2, c2 = cheat_end
+                dist_node = distances[r][c]
+                dist_cheat_end = distances[r2][c2]
+                save = dist_cheat_end - dist_node - cheat_length
+                save_counts[save] = save_counts.get(save, 0) + 1
+
+    total_count = 0
+    for save, count in sorted(save_counts.items(), key=lambda i: i[0]):
+        # print(f"There are {count} cheats that save {save} picoseconds.")
+        if save >= 100:
+            total_count += count
+
+    return total_count
 
 
 if len(sys.argv) != 2:
     print(f"{sys.argv[0]} [input file]")
     exit(1)
-
-print()
 
 grid = parse_file(sys.argv[1])
 
@@ -149,6 +194,8 @@ sol1 = solve_part1(deepcopy(grid))
 t1 = time.time()
 print("part1:", sol1, f"(elapsed time: {t1 - t0:.3f}s)")
 
+t0 = time.time()
 sol2 = solve_part2(deepcopy(grid))
-print("part2:", sol2)
+t1 = time.time()
+print("part2:", sol2, f"(elapsed time: {t1 - t0:.3f}s)")
 
